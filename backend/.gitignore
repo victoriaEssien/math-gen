@@ -10,9 +10,6 @@ __pycache__/
 # Ignore environment variables and sensitive files
 .env
 
-# Ignore database files
-math_questions.db
-
 # Ignore logs and temporary files
 *.log
 *.tmp
