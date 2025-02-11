@@ -1,79 +1,88 @@
-import React, { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from './components/ui/card';
-import { Button } from './components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './components/ui/select';
-import { RadioGroup, RadioGroupItem } from './components/ui/radio-group';
-import { Label } from './components/ui/label';
-import { Alert, AlertDescription } from './components/ui/alert';
-import { Loader2 } from 'lucide-react';
-import { useToast } from './components/ui/use-toast';
+import React, { useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "./components/ui/card";
+import { Button } from "./components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "./components/ui/select";
+import { RadioGroup, RadioGroupItem } from "./components/ui/radio-group";
+import { Label } from "./components/ui/label";
+import { Alert, AlertDescription } from "./components/ui/alert";
+import { Loader2 } from "lucide-react";
+import { useToast } from "./components/ui/use-toast";
 
 const MathTutor = () => {
-  const [topic, setTopic] = useState('');
-  const [difficulty, setDifficulty] = useState('');
+  const [topic, setTopic] = useState("");
+  const [difficulty, setDifficulty] = useState("");
   const [question, setQuestion] = useState(null);
-  const [selectedAnswer, setSelectedAnswer] = useState('');
+  const [selectedAnswer, setSelectedAnswer] = useState("");
   const [feedback, setFeedback] = useState(null);
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
   const topics = [
-    { value: 'algebra', label: 'Algebra' },
-    { value: 'geometry', label: 'Geometry' },
-    { value: 'trigonometry', label: 'Trigonometry' },
-    { value: 'calculus', label: 'Calculus' },
-    { value: 'statistics', label: 'Statistics' },
+    { value: "algebra", label: "Algebra" },
+    { value: "geometry", label: "Geometry" },
+    { value: "trigonometry", label: "Trigonometry" },
+    { value: "calculus", label: "Calculus" },
+    { value: "statistics", label: "Statistics" },
   ];
 
   const difficulties = [
-    { value: 'beginner', label: 'Beginner' },
-    { value: 'intermediate', label: 'Intermediate' },
-    { value: 'advanced', label: 'Advanced' },
+    { value: "beginner", label: "Beginner" },
+    { value: "intermediate", label: "Intermediate" },
+    { value: "advanced", label: "Advanced" },
   ];
 
   const handleError = (error, customMessage) => {
     console.error(error);
     toast({
-      title: 'Error',
+      title: "Error",
       description: customMessage,
-      variant: 'destructive',
+      variant: "destructive",
     });
   };
 
   const fetchQuestion = async () => {
     if (!topic || !difficulty) {
       toast({
-        title: 'Invalid Input',
-        description: 'Please select both topic and difficulty',
-        variant: 'destructive',
+        title: "Invalid Input",
+        description: "Please select both topic and difficulty",
+        variant: "destructive",
       });
       return;
     }
 
     try {
       setLoading(true);
-      const response = await fetch('http://localhost:8000/questions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ topic, difficulty }),
-      });
+      const response = await fetch(
+        `${import.meta.env.VITE_BASE_URL}/questions`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ topic, difficulty }),
+        }
+      );
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
       const data = await response.json();
-      
+
       // Validate response data
       if (!data.id || !data.question_text || !Array.isArray(data.options)) {
-        throw new Error('Invalid question format received');
+        throw new Error("Invalid question format received");
       }
 
       setQuestion(data);
-      setSelectedAnswer('');
+      setSelectedAnswer("");
       setFeedback(null);
     } catch (error) {
-      handleError(error, 'Failed to fetch question. Please try again.');
+      handleError(error, "Failed to fetch question. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -82,42 +91,47 @@ const MathTutor = () => {
   const submitAnswer = async () => {
     if (!question?.id || !selectedAnswer) {
       toast({
-        title: 'Invalid Submission',
-        description: 'Please select an answer before submitting',
-        variant: 'destructive',
+        title: "Invalid Submission",
+        description: "Please select an answer before submitting",
+        variant: "destructive",
       });
       return;
     }
-
+  
     try {
-      setLoading(true);
-      const response = await fetch('http://localhost:8000/submit', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      setLoading(true); // Keep loading state true
+  
+      const response = await fetch("http://localhost:8000/submit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           question_id: question.id,
           selected_answer: selectedAnswer,
         }),
       });
-
+  
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
-
+  
       const data = await response.json();
-      
+  
       // Validate feedback data
-      if (typeof data.is_correct !== 'boolean' || !Array.isArray(data.solution_steps)) {
-        throw new Error('Invalid feedback format received');
+      if (typeof data.is_correct !== "boolean" || !Array.isArray(data.solution_steps)) {
+        throw new Error("Invalid feedback format received");
       }
-
-      setFeedback(data);
+  
+      // Introduce a 5-second delay before showing feedback
+      setTimeout(() => {
+        setFeedback(data);
+        setLoading(false); // Stop loading after delay
+      }, 5000);
     } catch (error) {
-      handleError(error, 'Failed to submit answer. Please try again.');
-    } finally {
-      setLoading(false);
+      handleError(error, "Failed to submit answer. Please try again.");
+      setLoading(false); // Stop loading immediately on error
     }
   };
+  
 
   return (
     <div className="container mx-auto p-4 max-w-3xl">
@@ -166,7 +180,7 @@ const MathTutor = () => {
             {loading ? (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             ) : (
-              'Get Question'
+              "Get Question"
             )}
           </Button>
         </CardContent>
@@ -199,7 +213,7 @@ const MathTutor = () => {
               {loading ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               ) : (
-                'Submit Answer'
+                "Submit Answer"
               )}
             </Button>
           </CardContent>
@@ -210,7 +224,7 @@ const MathTutor = () => {
         <Card>
           <CardHeader>
             <CardTitle>
-              {feedback.is_correct ? 'Correct! 🎉' : 'Not quite right'}
+              {feedback.is_correct ? "Correct! 🎉" : "Not quite right"}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -225,7 +239,7 @@ const MathTutor = () => {
                 ))}
               </ol>
             </div>
-            <div className="mt-6 p-4 bg-slate-50 rounded-lg">
+            {/* <div className="mt-6 p-4 bg-slate-50 rounded-lg">
               <h3 className="font-semibold mb-2">Performance Stats:</h3>
               <div className="grid grid-cols-3 gap-4 text-center">
                 <div>
@@ -247,7 +261,7 @@ const MathTutor = () => {
                   </p>
                 </div>
               </div>
-            </div>
+            </div> */}
             <Button onClick={fetchQuestion} className="w-full mt-6">
               Try Another Question
             </Button>

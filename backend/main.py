@@ -17,6 +17,7 @@ from contextlib import contextmanager
 load_dotenv()
 api_key = os.getenv("API_KEY")
 db_name = os.getenv("DB_NAME")
+allowed_origin = os.getenv("ALLOWED_ORIGIN")
 
 if not api_key or not db_name:
     raise ValueError("Missing required environment variables: API_KEY and/or DB_NAME")
@@ -217,12 +218,20 @@ class MathTutorAPI:
                 correct_answer, solution_steps, explanation = question_data
                 is_correct = selected_answer == correct_answer
                 
+                # Validate selected_answer
+                if not isinstance(selected_answer, str):
+                    raise HTTPException(status_code=400, detail="selected_answer must be a string")
+                
                 # Store attempt
-                cursor.execute('''
-                INSERT INTO student_attempts 
-                (question_id, selected_answer, is_correct, attempt_date)
-                VALUES (?, ?, ?, ?)
-                ''', (question_id, selected_answer, is_correct, datetime.now()))
+                try:
+                    cursor.execute('''
+                    INSERT INTO student_attempts 
+                    (question_id, selected_answer, is_correct, attempt_date)
+                    VALUES (?, ?, ?, ?)
+                    ''', (question_id, selected_answer, is_correct, datetime.now()))
+                    conn.commit()
+                except sqlite3.Error as e:
+                    raise HTTPException(status_code=500, detail=f"Failed to insert attempt: {str(e)}")
                 
                 # Calculate performance stats
                 cursor.execute('''
@@ -234,7 +243,8 @@ class MathTutorAPI:
                 ''', (question_id,))
                 stats = cursor.fetchone()
                 
-                conn.commit()
+                if not stats or len(stats) != 2:
+                    raise HTTPException(status_code=500, detail="Invalid performance stats data")
                 
                 performance_stats = {
                     "total_attempts": stats[0],
@@ -242,21 +252,29 @@ class MathTutorAPI:
                     "success_rate": round((stats[1] / stats[0]) * 100, 2) if stats[0] > 0 else 0
                 }
                 
+                # Parse solution_steps
+                try:
+                    solution_steps_parsed = json.loads(solution_steps)
+                except json.JSONDecodeError as e:
+                    raise HTTPException(status_code=500, detail=f"Failed to parse solution_steps: {str(e)}")
+                
                 return SubmissionResponse(
                     is_correct=is_correct,
                     explanation=explanation,
-                    solution_steps=json.loads(solution_steps),
+                    solution_steps=solution_steps_parsed,
                     performance_stats=performance_stats
                 )
         except sqlite3.Error as e:
             raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
-
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
+        
 # Create FastAPI app
 app = FastAPI(title="Math Tutor API")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=[allowed_origin],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
