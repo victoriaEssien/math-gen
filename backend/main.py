@@ -16,11 +16,10 @@ from contextlib import contextmanager
 # Load environment variables
 load_dotenv()
 api_key = os.getenv("API_KEY")
-db_name = os.getenv("DB_NAME")
 allowed_origin = os.getenv("ALLOWED_ORIGIN")
 
-if not api_key or not db_name:
-    raise ValueError("Missing required environment variables: API_KEY and/or DB_NAME")
+if not api_key:
+    raise ValueError("Missing required environment variables: API_KEY")
 
 # Configure warnings and environment
 warnings.filterwarnings("ignore", category=DeprecationWarning)
@@ -77,7 +76,7 @@ class MathTutorAPI:
 
     @contextmanager
     def get_db_connection(self):
-        conn = sqlite3.connect(db_name)
+        conn = sqlite3.connect("math_questions.db")
         sqlite3.register_adapter(datetime, lambda x: x.isoformat())
         try:
             yield conn
